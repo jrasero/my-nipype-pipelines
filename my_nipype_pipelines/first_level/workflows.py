@@ -7,42 +7,41 @@ def create_first_level_spm_wls_wf(bold_img,
                                   events_file,
                                   output_dir,
                                   repetition_time,
+                                  mask_file=None,
                                   confounders=None,
                                   contrasts=None,
                                   high_pass=None,
                                   fwhm=None):
     """
-
     Parameters
     ----------
-    bold_img : TYPE
-        DESCRIPTION.
-    confounders_file : TYPE
-        DESCRIPTION.
-    events_file : TYPE
-        DESCRIPTION.
-    output_dir : TYPE
-        DESCRIPTION.
-    repetition_time : TYPE
-        DESCRIPTION.
-    confounders : TYPE, optional
-        DESCRIPTION. The default is None.
-    contrasts : TYPE, optional
-        DESCRIPTION. The default is None.
-    high_pass : TYPE, optional
-        DESCRIPTION. The default is None.
-    fwhm : TYPE, optional
-        DESCRIPTION. The default is None.
-
-    Raises
-    ------
-    ValueError
-        DESCRIPTION.
+    bold_img : nifti file
+        Bold image.
+    confounders_file : tabular .tsv file
+        Tabular file from fmriprep with regressors.
+    events_file : tabular .tsv file
+        Tabular file with events conditions, durations and onsets as columns.
+    output_dir : path like string
+        Directory where to store output first-level estimations.
+    repetition_time : float
+        Repetition time of the acquisition.
+    mask_file : nifti file, optional
+        Image for explicitly masking the analysis. The default is None.
+    confounders : {List of strings or None}, optional
+        List with the columns from the confounders file to use as
+        confounders. If None, the 6 motion parameters are used.
+        The default is None.
+    contrasts : List, optional
+        List with contrasts. If None, all possible single estimations and
+        pairwise contrasts are computed. The default is None.
+    high_pass : float, optional
+        Rate (in secs) to high-pass filter the data. The default is None.
+    fwhm : float, optional
+        Smoothing applied to first-level estimations. The default is None.
 
     Returns
     -------
-    wf : TYPE
-        DESCRIPTION.
+    Nipype worflow with the pipeline.
 
     """
 
@@ -54,6 +53,9 @@ def create_first_level_spm_wls_wf(bold_img,
     from nipype.interfaces.utility import Function
     from my_nipype_pipelines.first_level.interfaces import Level1DesignWLS
 
+    # TODO: Maybe it's more convenient to ask to pass directly a data frame.
+    # as confounders (with column names). This way would be more general,
+    # not restricted to only fmriprep like confounders files.
     if confounders is None:
         motion = ['trans_x', 'trans_y', 'trans_z', 'rot_x', 'rot_y', 'rot_z']
         confounders = motion
@@ -95,6 +97,12 @@ def create_first_level_spm_wls_wf(bold_img,
                      name="level1_design")
 
     wf.connect(specify_model, 'session_info',  design, 'session_info')
+
+    if mask_file:
+        gun_zip_mask = pe.Node(Gunzip(in_file=mask_file),
+                               name="unzip_mask")
+        wf.connect(gun_zip_mask, 'out_file',  design, 'mask_image')
+
 
     # TODO: The same as above regarding inputs
     estimate_model = pe.Node(
@@ -140,17 +148,17 @@ def create_first_level_spm_wls_wf(bold_img,
     datasink = pe.Node(nio.DataSink(base_directory=output_dir),
                        name='data_sink')
 
-    wf.connect(estimate_model, "beta_images", datasink, "first_level")
+    wf.connect(estimate_model, "beta_images", datasink, "@foo")
     wf.connect([(estimate_contrasts,
-                 datasink, [("con_images", "first_level.@con_images"),
-                            ("spmT_images", "first_level.@spmT_images"),
-                            ("spm_mat_file", "first_level.@spm_mat_file")])
+                 datasink, [("con_images", "@foo.@con_images"),
+                            ("spmT_images", "@foo.@spmT_images"),
+                            ("spm_mat_file", "@foo.@spm_mat_file")])
                 ])
     wf.connect(smoothing_betas, "smoothed_betas",
-               datasink, "first_level.@smoothed_betas")
+               datasink, "@foo.@smoothed_betas")
     wf.connect(smoothing_contrasts, "smoothed_cons",
-               datasink, "first_level.@smoothed_cons")
+               datasink, "@foo.@smoothed_cons")
     wf.connect(smoothing_stats, "smoothed_stats",
-               datasink, "first_level.@smoothed_stats")
+               datasink, "@foo.@smoothed_stats")
 
     return wf

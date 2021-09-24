@@ -70,6 +70,11 @@ def smooth_imgs(imgs, fwhm):
     from pathlib import Path
     import os
 
+    # Convert to list in the case that
+    # just one single image is passed
+    if type(imgs) != list:
+        imgs = [imgs]
+
     smoothed_imgs = smooth_img(imgs=imgs, fwhm=fwhm)
     pth = os.path.dirname(os.getcwd())
 

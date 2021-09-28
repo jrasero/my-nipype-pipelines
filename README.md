@@ -4,7 +4,8 @@ Some pipelines implemented with nipype.
 
 Up to now, there are the following
 
-  - A workflow for carrying out first-level analysis on fmriprep data using SPM12 and RobustWLS toolbox.
+  - A workflow for carrying out first-level analysis on fmriprep data using SPM12 using the estimator by default or the RobustWLS toolbox.
+  - A workflow for carrying out first-level analysis on fmriprep data using FSL FEAT.
 
 Under continuously development.
 
